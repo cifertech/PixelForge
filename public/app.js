@@ -15,11 +15,38 @@ let templateBgData = null;
 let lastSvgText = null;
 let lastBlobUrl = null;
 const DEFAULT_LOGO_PATH = "public/assets/example-logo.png";
+const API_BASE_STORAGE_KEY = "gitbadge_api_base";
 const apiBaseParam = new URLSearchParams(window.location.search).get("apiBase");
-const apiBaseOverride = (apiBaseParam || window.GITBADGE_API_BASE || "").trim();
 const siteBase = new URL(".", window.location.href);
 
+function $(id) {
+  return document.getElementById(id);
+}
+
+function getStoredApiBase() {
+  try {
+    return localStorage.getItem(API_BASE_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function getInputApiBase() {
+  const el = $("apiBase");
+  return el ? el.value.trim() : "";
+}
+
+function getApiBaseOverride() {
+  const override = apiBaseParam || window.GITBADGE_API_BASE || getInputApiBase() || getStoredApiBase();
+  return (override || "").trim();
+}
+
+function isGithubPagesHost() {
+  return /\.github\.io$/i.test(window.location.hostname);
+}
+
 function resolveApiEndpoint() {
+  const apiBaseOverride = getApiBaseOverride();
   if (apiBaseOverride) {
     const base = new URL(apiBaseOverride, window.location.href);
     if (!base.pathname.endsWith("/api/badge")) {
@@ -43,10 +70,6 @@ function buildApiUrl(params) {
     }
   }
   return endpoint.toString();
-}
-
-function $(id) {
-  return document.getElementById(id);
 }
 
 function setStatus(text) {
@@ -204,6 +227,10 @@ function generate() {
 
   if (location.protocol === "file:") {
     setStatus("Error: You opened this page as a local file (file://). Please run it via a local server or deploy (Vercel/GitHub Pages with API override), otherwise /api/badge will not work.");
+    return;
+  }
+  if (isGithubPagesHost() && !getApiBaseOverride()) {
+    setStatus("GitHub Pages needs an API base URL. Set the API Base field or add ?apiBase=https://your-api.example.com");
     return;
   }
 
@@ -377,6 +404,25 @@ window.addEventListener("DOMContentLoaded", () => {
   if (ownerEl && repoEl && !ownerEl.value && !repoEl.value) {
     ownerEl.value = "octocat";
     repoEl.value = "Hello-World";
+  }
+
+  const apiBaseEl = $("apiBase");
+  if (apiBaseEl) {
+    const initialApiBase = getApiBaseOverride();
+    if (initialApiBase) apiBaseEl.value = initialApiBase;
+    apiBaseEl.addEventListener("change", () => {
+      const value = apiBaseEl.value.trim();
+      try {
+        if (value) {
+          localStorage.setItem(API_BASE_STORAGE_KEY, value);
+        } else {
+          localStorage.removeItem(API_BASE_STORAGE_KEY);
+        }
+      } catch {
+        // Ignore storage errors (private browsing, blocked storage).
+      }
+      scheduleGenerate();
+    });
   }
 
   const logoUrlEl = $("logoUrl");
