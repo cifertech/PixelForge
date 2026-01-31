@@ -1,0 +1,7 @@
+{
+  "name": "advanced-github-badge-builder",
+  "type": "module",
+  "dependencies": {
+    "@octokit/rest": "^21.0.0"
+  }
+}
