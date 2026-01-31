@@ -14,7 +14,36 @@ let templateLogoData = null;
 let templateBgData = null;
 let lastSvgText = null;
 let lastBlobUrl = null;
-const DEFAULT_LOGO_PATH = "/public/assets/example-logo.png";
+const DEFAULT_LOGO_PATH = "public/assets/example-logo.png";
+const apiBaseParam = new URLSearchParams(window.location.search).get("apiBase");
+const apiBaseOverride = (apiBaseParam || window.GITBADGE_API_BASE || "").trim();
+const siteBase = new URL(".", window.location.href);
+
+function resolveApiEndpoint() {
+  if (apiBaseOverride) {
+    const base = new URL(apiBaseOverride, window.location.href);
+    if (!base.pathname.endsWith("/api/badge")) {
+      base.pathname = base.pathname.replace(/\/$/, "") + "/api/badge";
+    }
+    return base;
+  }
+  return new URL("api/badge", siteBase);
+}
+
+function buildApiUrl(params) {
+  const endpoint = resolveApiEndpoint();
+  if (params) {
+    if (endpoint.search) {
+      const merged = new URLSearchParams(endpoint.search);
+      const extra = new URLSearchParams(params);
+      for (const [key, value] of extra.entries()) merged.set(key, value);
+      endpoint.search = merged.toString();
+    } else {
+      endpoint.search = params;
+    }
+  }
+  return endpoint.toString();
+}
 
 function $(id) {
   return document.getElementById(id);
@@ -174,7 +203,7 @@ function generate() {
   setStatus("");
 
   if (location.protocol === "file:") {
-    setStatus("Error: You opened this page as a local file (file://). Please run it via a local server or deploy (Vercel), otherwise /api/badge will not work.");
+    setStatus("Error: You opened this page as a local file (file://). Please run it via a local server or deploy (Vercel/GitHub Pages with API override), otherwise /api/badge will not work.");
     return;
   }
 
@@ -249,7 +278,7 @@ function generate() {
         bgImageData: templateBgData || undefined
       };
 
-      fetch("/api/badge", {
+      fetch(buildApiUrl(""), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload)
@@ -289,8 +318,8 @@ function generate() {
     params.set("accent", `#${accent}`);
   }
 
-  const url = `/api/badge?${params.toString()}`;
-  const absoluteUrl = `${location.origin}${url}`;
+  const url = buildApiUrl(params.toString());
+  const absoluteUrl = url;
 
   lastSvgText = null;
   const btn = $("downloadSvg");
@@ -352,7 +381,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const logoUrlEl = $("logoUrl");
   if (logoUrlEl && !logoUrlEl.value && (location.protocol === "http:" || location.protocol === "https:")) {
-    logoUrlEl.value = `${location.origin}${DEFAULT_LOGO_PATH}`;
+    const defaultLogoUrl = new URL(DEFAULT_LOGO_PATH, siteBase).toString();
+    logoUrlEl.value = defaultLogoUrl;
     const logoHint = $("logoDropHint");
     if (logoHint) logoHint.textContent = "Default logo loaded (edit URL or drop to replace)";
   }
