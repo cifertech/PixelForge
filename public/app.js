@@ -14,7 +14,7 @@ let templateLogoData = null;
 let templateBgData = null;
 let lastSvgText = null;
 let lastBlobUrl = null;
-const DEFAULT_LOGO_PATH = "/assets/example-logo.png";
+const DEFAULT_LOGO_PATH = "/public/assets/example-logo.png";
 
 function $(id) {
   return document.getElementById(id);
